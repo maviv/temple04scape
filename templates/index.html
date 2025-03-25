@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>RuneScape Hiscore Tracker</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #skills-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #skills-table th, #skills-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #skills-table th {
+            background-color: #f2f2f2;
+        }
+        .change-indicator {
+            font-weight: bold;
+        }
+        .positive-change { color: green; }
+        .negative-change { color: red; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>RuneScape Hiscore Tracker</h1>
+        
+        <div>
+            <input type="text" id="username" placeholder="Enter RuneScape Username">
+            <select id="time-period">
+                <option value="day">Past Day</option>
+                <option value="week">Past Week</option>
+                <option value="month">Past Month</option>
+            </select>
+            <button onclick="trackUser()">Track User</button>
+        </div>
+        
+        <table id="skills-table" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    <th>Rank</th>
+                    <th>Level</th>
+                    <th>Experience</th>
+                    <th>Exp Change</th>
+                </tr>
+            </thead>
+            <tbody id="skills-body">
+                <!-- Skills will be populated here -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+    async function trackUser() {
+        const username = document.getElementById('username').value;
+        const timePeriod = document.getElementById('time-period').value;
+        
+        try {
+            // Track the user
+            const trackResponse = await fetch('/track', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    username: username,
+                    time_period: timePeriod 
+                })
+            });
+            
+            const trackResult = await trackResponse.json();
+            
+            if (trackResult.skills) {
+                // Populate the skills table
+                const skillsBody = document.getElementById('skills-body');
+                const skillsTable = document.getElementById('skills-table');
+                
+                // Clear previous entries
+                skillsBody.innerHTML = '';
+                
+                // Show skills table
+                skillsTable.style.display = 'table';
+                
+                // Sort skills: Overall first, then alphabetically
+                const sortedSkills = Object.entries(trackResult.skills)
+                    .sort(([skillA], [skillB]) => {
+                        if (skillA === 'Overall') return -1;
+                        if (skillB === 'Overall') return 1;
+                        return skillA.localeCompare(skillB);
+                    });
+                
+                // Add new skills
+                sortedSkills.forEach(([skillName, skillData]) => {
+                    const row = skillsBody.insertRow();
+                    row.insertCell(0).textContent = skillName;
+                    row.insertCell(1).textContent = skillData.rank.toLocaleString();
+                    row.insertCell(2).textContent = skillData.level;
+                    row.insertCell(3).textContent = skillData.exp.toLocaleString();
+                    
+                    // Experience change cell
+                    const expChangeCell = row.insertCell(4);
+                    const expChange = trackResult.skill_changes[skillName].exp_change;
+                    
+                    // Format and style the experience change
+                    const expChangeFormatted = expChange.toLocaleString();
+                    expChangeCell.textContent = expChangeFormatted;
+                    expChangeCell.classList.add('change-indicator');
+                    
+                    // Add color coding for positive/negative changes
+                    if (expChange > 0) {
+                        expChangeCell.classList.add('positive-change');
+                        expChangeCell.textContent = `+${expChangeFormatted}`;
+                    } else if (expChange < 0) {
+                        expChangeCell.classList.add('negative-change');
+                    }
+                });
+            } else {
+                alert('No skills found');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('An error occurred while tracking the user');
+        }
+    }
+</script>
+</body>
+</html>
